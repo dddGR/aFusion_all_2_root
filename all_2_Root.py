@@ -45,21 +45,6 @@ def run(_context: str):
                 body_index += 1
 
                 body_groups[group_name].append(newBody)
-
-        # for occ in occs:
-        #     bodyIndex: int = 1
-        #     for body in occ.bRepBodies:
-        #         newBody = body.copyToComponent(rootComp)
-
-        #         prefix = re.sub(r'\s*\(\d+\)\s*', '', occ.name).strip()
-        #         newBody.name = f"{prefix}-{bodyIndex}"
-        #         bodyIndex += 1
-
-        #         group_name = prefix.split(':')[0]
-
-        #         if group_name not in body_groups:
-        #             body_groups[group_name] = []
-        #         body_groups[group_name].append(newBody)
         
         # Sort bodies by name
         body_groups_sorted = dict(sorted(body_groups.items()))
