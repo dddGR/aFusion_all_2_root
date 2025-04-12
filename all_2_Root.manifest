@@ -1,9 +1,9 @@
 {
 	"autodeskProduct":	"Fusion",
 	"type":	"script",
-	"author":	"",
+	"author":	"dddGR",
 	"description":	{
-		"":	""
+		"":	"script to move all the body to root component."
 	},
 	"version":	"",
 	"supportedOS":	"windows|mac",
