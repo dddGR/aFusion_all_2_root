@@ -3,23 +3,77 @@
 import traceback, adsk.core, adsk.fusion
 # import adsk.cam
 
-import re
-from .BodiesGroupFactry import bodiesGroupFactry
+import re, json
+# from .BodiesGroupFactry import bodiesGroupFactry
 
 # more info on fusion API: https://help.autodesk.com/view/fusion360/ENU/?guid=GUID-7B5A90C8-E94C-48DA-B16B-430729B734DC
+
+app = adsk.core.Application.get()
+ui  = app.userInterface
+
+
+# Create Group from set of bodies
+# the code is from here: https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/feature-request-api-for-creating-and-managing-quot-group-quot-s/m-p/9905701/highlight/true#M10023
+def createGroup(groupName :str, bodiesList :list):
+
+    _app = adsk.core.Application.get()
+    _ui = _app.userInterface
+    des  :adsk.fusion.Design = app.activeProduct
+    root :adsk.fusion.Component = des.rootComponent
+
+    # selections
+    sels :adsk.core.Selections = _ui.activeSelections
+    sels.clear()
+
+    # select root bodies
+    bodies :adsk.fusion.BRepBodies = root.bRepBodies
+    sels.add(bodies)
+
+    # Create SurfaceGroup
+    _app.executeTextCommand(u'Commands.Start FusionCreateSurfaceGroupCommand')
+
+    # get SurfaceGroups Properties
+    # SurfaceGroups(SurfaceGroupsMetaType id: 21)
+    surfaceGroupsProp = _app.executeTextCommand(u'PEntity.Properties 21')
+
+    # Convert to json
+    surfaceGroups = json.loads(surfaceGroupsProp)
+
+    # SurfaceGroup count
+    surfaceGroups_count = len(surfaceGroups['children'])
+    # print(str(surfaceGroups_count))
+
+    # get Target Id
+    targetId = surfaceGroups['children'][surfaceGroups_count - 1]['entityId']
+
+    # Rename SurfaceGroup
+    _app.executeTextCommand(u'PInterfaces.Rename {} {}'.format(targetId, groupName))
+
+    # _ui.messageBox(f'TargetId is: {targetId}') # for debug
+
+    # select bodiesList
+    [sels.add(body) for body in bodiesList]
+
+    # select SurfaceGroup
+    # https://github.com/kantoku-code/Fusion360_Small_Tools_for_Developers/blob/master/TextCommands/TextCommands_txt_Ver2_0_8176.txt#L2058
+    # Except for the root component, the <Paths> need to be changed.
+    # _app.executeTextCommand(u'Selections.Add 57:3:21:{}'.format(targetId))
+
+    # exec FusionMoveToSurfaceGroupCommand
+    _app.executeTextCommand(u'Commands.Start FusionMoveToSurfaceGroupCommand')
+    _app.executeTextCommand(u'NuCommands.CommitCmd')
+
+
 
 def run(_context: str):
     """This function is called by Fusion when the script is run."""
     
-    app = adsk.core.Application.get()
-    ui  = app.userInterface
-
     try:
         design: adsk.fusion.Design = app.activeProduct
         if not design:
             ui.messageBox('No active design found.')
             return
-        
+
         design.designType = adsk.fusion.DesignTypes.ParametricDesignType
         rootComp: adsk.fusion.Component = design.rootComponent
         
@@ -76,10 +130,12 @@ def run(_context: str):
         # Sort bodies by name and create groups by name
         body_groups_sorted = dict(sorted(body_groups.items()))
 
-        groupFact = bodiesGroupFactry()
+        # groupFact = bodiesGroupFactry()
         for group_name, body_list in body_groups_sorted.items():
-            groupFact.createBodiesGroup(body_list, group_name)
-
+            # groupFact.createBodiesGroup(body_list, group_name)
+            if len(body_list) > 1:
+                createGroup(group_name, body_list)
+        
         # Remove old components (not delete to revert if needed)
         for occ in occs:
             rootComp.features.removeFeatures.add(occ)
