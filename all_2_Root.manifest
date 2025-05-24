@@ -6,7 +6,7 @@
 		"":	"script to move all the body to root component."
 	},
 	"version":	"",
-	"supportedOS":	"windows|mac",
+	"supportedOS":	"windows",
 	"editEnabled":	true,
 	"iconFilename":	"ScriptIcon.svg"
 }
