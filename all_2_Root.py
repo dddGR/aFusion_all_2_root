@@ -12,9 +12,21 @@ app = adsk.core.Application.get()
 ui  = app.userInterface
 
 
+def getSurfaceGroupsID() -> int:
+
+    _app = adsk.core.Application.get()
+
+    for i in range(0, 30):
+        Properties = _app.executeTextCommand(u'PEntity.Properties {}'.format(i))
+        jsonProp = json.loads(Properties)
+
+        if jsonProp.get("interfaceId") == "Ns::BREP::SurfaceGroups":
+            return i
+
+
 # Create Group from set of bodies
 # the code is from here: https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/feature-request-api-for-creating-and-managing-quot-group-quot-s/m-p/9905701/highlight/true#M10023
-def createGroup(groupName :str, bodiesList :list):
+def createGroup(groupName :str, bodiesList :list, id :int):
 
     _app = adsk.core.Application.get()
     _ui = _app.userInterface
@@ -33,23 +45,18 @@ def createGroup(groupName :str, bodiesList :list):
     _app.executeTextCommand(u'Commands.Start FusionCreateSurfaceGroupCommand')
 
     # get SurfaceGroups Properties
-    # SurfaceGroups(SurfaceGroupsMetaType id: 21)
-    surfaceGroupsProp = _app.executeTextCommand(u'PEntity.Properties 21')
-
+    # SurfaceGroups(SurfaceGroupsMetaType id: 21)  
+    surfaceGroupsProp = _app.executeTextCommand(u'PEntity.Properties {}'.format(id)) # Id change after v.2602.1.14 – May 27, 2025 update
+    
     # Convert to json
     surfaceGroups = json.loads(surfaceGroupsProp)
 
-    # SurfaceGroup count
     surfaceGroups_count = len(surfaceGroups['children'])
-    # print(str(surfaceGroups_count))
 
-    # get Target Id
     targetId = surfaceGroups['children'][surfaceGroups_count - 1]['entityId']
 
-    # Rename SurfaceGroup
-    _app.executeTextCommand(u'PInterfaces.Rename {} {}'.format(targetId, groupName))
-
-    # _ui.messageBox(f'TargetId is: {targetId}') # for debug
+    if len(groupName) > 0: # Rename SurfaceGroup
+        _app.executeTextCommand(u'PInterfaces.Rename {} {}'.format(targetId, groupName))
 
     # select bodiesList
     [sels.add(body) for body in bodiesList]
@@ -130,11 +137,13 @@ def run(_context: str):
         # Sort bodies by name and create groups by name
         body_groups_sorted = dict(sorted(body_groups.items()))
 
+        sf_id: int = getSurfaceGroupsID()
+
         # groupFact = bodiesGroupFactry()
         for group_name, body_list in body_groups_sorted.items():
             # groupFact.createBodiesGroup(body_list, group_name)
             if len(body_list) > 1:
-                createGroup(group_name, body_list)
+                createGroup(group_name, body_list, sf_id)
         
         # Remove old components (not delete to revert if needed)
         for occ in occs:
