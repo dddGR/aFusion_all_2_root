@@ -8,31 +8,13 @@ import re, json
 
 # more info on fusion API: https://help.autodesk.com/view/fusion360/ENU/?guid=GUID-7B5A90C8-E94C-48DA-B16B-430729B734DC
 
-app = adsk.core.Application.get()
-ui  = app.userInterface
-
-
-def getSurfaceGroupsID() -> int:
-
-    _app = adsk.core.Application.get()
-
-    for i in range(10, 21):
-        Properties = _app.executeTextCommand(u'PEntity.Properties {}'.format(i))
-        jsonProp = json.loads(Properties)
-
-        if jsonProp.get("interfaceId") == "Ns::BREP::SurfaceGroups":
-            return i
-    
-    return -1
-
-
 # Create Group from set of bodies
 # the code is from here: https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/feature-request-api-for-creating-and-managing-quot-group-quot-s/m-p/9905701/highlight/true#M10023
-def createGroup(groupName :str, bodiesList :list, id :int):
+def createGroup(groupName :str, bodiesList :list):
 
     _app = adsk.core.Application.get()
     _ui = _app.userInterface
-    des  :adsk.fusion.Design = app.activeProduct
+    des  :adsk.fusion.Design = _app.activeProduct
     root :adsk.fusion.Component = des.rootComponent
 
     # selections
@@ -47,17 +29,27 @@ def createGroup(groupName :str, bodiesList :list, id :int):
     _app.executeTextCommand(u'Commands.Start FusionCreateSurfaceGroupCommand')
 
     # get SurfaceGroups Properties
-    # SurfaceGroups(SurfaceGroupsMetaType id: 21)  
-    surfaceGroupsProp = _app.executeTextCommand(u'PEntity.Properties {}'.format(id)) # Id change after v.2602.1.14 – May 27, 2025 update
-    
-    # Convert to json
-    surfaceGroups = json.loads(surfaceGroupsProp)
+    for i in range(0, 30): # why does this change everytime, ahhhhhh....
+        try:
+            surfaceGroupsProp = _app.executeTextCommand(u'PEntity.Properties {}'.format(i))
+        except:
+            continue
+
+        surfaceGroups = json.loads(surfaceGroupsProp)  # Convert to json
+
+        if surfaceGroups.get("interfaceId") == "Ns::BREP::SurfaceGroups":
+            break
+
+        if i == 30:
+            _ui.messageBox("[ERROR] SurfaceGroups ID not found. Body not grouped.")
+            return
 
     surfaceGroups_count = len(surfaceGroups['children'])
 
     targetId = surfaceGroups['children'][surfaceGroups_count - 1]['entityId']
 
-    if len(groupName) > 0: # Rename SurfaceGroup
+    # Rename SurfaceGroup
+    if len(groupName) > 0:
         _app.executeTextCommand(u'PInterfaces.Rename {} {}'.format(targetId, groupName))
 
     # select bodiesList
@@ -77,6 +69,9 @@ def createGroup(groupName :str, bodiesList :list, id :int):
 def run(_context: str):
     """This function is called by Fusion when the script is run."""
     
+    app = adsk.core.Application.get()
+    ui  = app.userInterface
+
     try:
         design: adsk.fusion.Design = app.activeProduct
         if not design:
@@ -99,7 +94,7 @@ def run(_context: str):
                     body.copyToComponent(occurrence)
 
                     # deleted old body (no need, main component will be
-                    # remove after script is done), keep to use later, maybe
+                    # remove after script is done), keep to use later, maybe..
                     # sub_occ.component.features.removeFeatures.add(body)
 
         
@@ -139,23 +134,15 @@ def run(_context: str):
         # Sort bodies by name and create groups by name
         body_groups_sorted = dict(sorted(body_groups.items()))
 
-        sf_id: int = getSurfaceGroupsID()
-
-        if sf_id == -1:
-            ui.messageBox('[WARNING] SurfaceGroups ID not found. Body not grouped.')
-            return
-
-        # groupFact = bodiesGroupFactry()
         for group_name, body_list in body_groups_sorted.items():
-            # groupFact.createBodiesGroup(body_list, group_name)
             if len(body_list) > 1:
-                createGroup(group_name, body_list, sf_id)
+                createGroup(group_name, body_list)
         
         # Remove old components (not delete to revert if needed)
         for occ in occs:
             rootComp.features.removeFeatures.add(occ)
 
-        ui.messageBox('All bodies have been moved to root and sorted.')
+        ui.messageBox('[OK] All bodies have been moved to root and sorted.')
         
     except:
         if ui:
