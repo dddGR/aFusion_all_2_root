@@ -16,12 +16,14 @@ def getSurfaceGroupsID() -> int:
 
     _app = adsk.core.Application.get()
 
-    for i in range(0, 30):
+    for i in range(10, 21):
         Properties = _app.executeTextCommand(u'PEntity.Properties {}'.format(i))
         jsonProp = json.loads(Properties)
 
         if jsonProp.get("interfaceId") == "Ns::BREP::SurfaceGroups":
             return i
+    
+    return -1
 
 
 # Create Group from set of bodies
@@ -138,6 +140,10 @@ def run(_context: str):
         body_groups_sorted = dict(sorted(body_groups.items()))
 
         sf_id: int = getSurfaceGroupsID()
+
+        if sf_id == -1:
+            ui.messageBox('[WARNING] SurfaceGroups ID not found. Body not grouped.')
+            return
 
         # groupFact = bodiesGroupFactry()
         for group_name, body_list in body_groups_sorted.items():
